@@ -7,9 +7,9 @@ AUTO_APPROVE ?=
 ANSIBLE_ARGS = $(if $(V),-$(V),)
 TF_AUTO_APPROVE = $(if $(AUTO_APPROVE),-auto-approve,)
 
-.PHONY: all help prereqs infra-init infra-plan infra-apply inventory bootstrap cluster common cp workers kubeconfig cluster-info smoke-test status ssh-cp ssh-worker reset destroy
+.PHONY: all help prereqs infra-init infra-plan infra-apply inventory clean-keys bootstrap cluster common cp workers kubeconfig cluster-info smoke-test status ssh-cp ssh-worker reset destroy
 
-all: infra-init infra-apply inventory bootstrap cluster kubeconfig smoke-test ## Full deploy from zero to working cluster
+all: infra-init infra-apply inventory clean-keys bootstrap cluster kubeconfig smoke-test ## Full deploy from zero to working cluster
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -53,6 +53,15 @@ inventory: ## Generate Ansible inventory from Terraform
 	cd $(TERRAFORM_DIR) && terraform output -raw ansible_inventory > ../$(ANSIBLE_DIR)/inventory.ini
 	@echo "Inventory written to $(ANSIBLE_DIR)/inventory.ini"
 	@cat $(ANSIBLE_DIR)/inventory.ini
+
+# --- SSH Keys ---
+
+clean-keys: ## Remove old SSH host keys for cluster IPs from known_hosts
+	@cd $(TERRAFORM_DIR) && terraform output -json control_plane_ips 2>/dev/null | jq -r '.[]' | while read ip; do \
+		ssh-keygen -f ~/.ssh/known_hosts -R "$$ip" 2>/dev/null; done
+	@cd $(TERRAFORM_DIR) && terraform output -json worker_ips 2>/dev/null | jq -r '.[]' | while read ip; do \
+		ssh-keygen -f ~/.ssh/known_hosts -R "$$ip" 2>/dev/null; done
+	@echo "Old SSH host keys removed."
 
 # --- Bootstrap ---
 
@@ -115,4 +124,5 @@ ssh-worker: ## SSH into worker N (default N=0)
 destroy: ## Destroy all infrastructure (with confirmation)
 	@echo "WARNING: This will destroy ALL infrastructure."
 	@read -p "Type 'yes' to confirm: " confirm && [ "$$confirm" = "yes" ] || (echo "Aborted." && exit 1)
+	$(MAKE) clean-keys
 	cd $(TERRAFORM_DIR) && terraform destroy
