@@ -1,0 +1,43 @@
+---
+- name: Check if node already joined the cluster
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_join
+
+- name: Get control plane join command from first CP
+  command: cat /root/cp-join-command.txt
+  delegate_to: "{{ groups['control_plane_init'][0] }}"
+  register: cp_join_command
+  changed_when: false
+  when: not kubeadm_join.stat.exists
+
+- name: Join cluster as control plane node
+  command: "{{ cp_join_command.stdout }} --apiserver-advertise-address={{ internal_ip }}"
+  when: not kubeadm_join.stat.exists
+
+- name: Create .kube directory
+  file:
+    path: /root/.kube
+    state: directory
+    mode: "0700"
+
+- name: Copy admin.conf to .kube/config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    mode: "0600"
+
+- name: Configure kubelet to use internal IP
+  copy:
+    dest: /etc/default/kubelet
+    content: 'KUBELET_EXTRA_ARGS="--node-ip={{ internal_ip }}"'
+  notify: restart kubelet
+
+- name: Wait for node to be Ready
+  shell: kubectl get node {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  register: node_ready
+  retries: 30
+  delay: 10
+  until: node_ready.stdout == "True"
+  changed_when: false

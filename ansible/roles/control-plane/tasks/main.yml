@@ -1,0 +1,37 @@
+---
+- name: Check if cluster is already initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_init
+
+- name: Create kubeadm config
+  template:
+    src: kubeadm-config.yml.j2
+    dest: /root/kubeadm-config.yml
+  when: not kubeadm_init.stat.exists
+
+- name: Initialize Kubernetes cluster
+  command: kubeadm init --config /root/kubeadm-config.yml
+  when: not kubeadm_init.stat.exists
+  register: kubeadm_init_result
+
+- name: Create .kube directory
+  file:
+    path: /root/.kube
+    state: directory
+    mode: "0700"
+
+- name: Copy admin.conf to .kube/config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    mode: "0600"
+
+- name: Wait for API server to be ready
+  command: kubectl get nodes
+  register: nodes_result
+  retries: 30
+  delay: 10
+  until: nodes_result.rc == 0
+  changed_when: false

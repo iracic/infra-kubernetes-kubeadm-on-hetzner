@@ -1,0 +1,7 @@
+kubeconfig.yaml
+ansible/inventory.ini
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/terraform.tfvars
+terraform/.terraform.lock.hcl

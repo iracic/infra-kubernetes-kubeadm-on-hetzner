@@ -1,0 +1,30 @@
+[control_plane_init]
+${control_planes[0].name} ansible_host=${control_planes[0].public_ip} internal_ip=${control_planes[0].internal_ip}
+
+[control_plane_join]
+%{ for cp in slice(control_planes, 1, length(control_planes)) ~}
+${cp.name} ansible_host=${cp.public_ip} internal_ip=${cp.internal_ip}
+%{ endfor ~}
+
+[control_plane:children]
+control_plane_init
+control_plane_join
+
+[workers]
+%{ for w in workers ~}
+${w.name} ansible_host=${w.public_ip} internal_ip=${w.internal_ip}
+%{ endfor ~}
+
+[k8s:children]
+control_plane
+workers
+
+[all:vars]
+ansible_user=root
+ansible_ssh_private_key_file=~/.ssh/id_ed25519
+k8s_version=${k8s_version}
+pod_cidr=10.244.0.0/16
+service_cidr=10.96.0.0/12
+lb_ip=${lb_ip}
+calico_version=3.29.2
+calico_mtu=1450

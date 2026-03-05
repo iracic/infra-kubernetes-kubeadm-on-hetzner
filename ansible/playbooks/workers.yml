@@ -1,0 +1,7 @@
+---
+- name: Join worker nodes to cluster
+  hosts: workers
+  become: true
+  serial: 1
+  roles:
+    - worker

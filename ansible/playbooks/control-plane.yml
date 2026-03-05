@@ -1,0 +1,14 @@
+---
+- name: Initialize first control plane node
+  hosts: control_plane_init
+  become: true
+  roles:
+    - control-plane
+    - calico
+
+- name: Join additional control plane nodes
+  hosts: control_plane_join
+  become: true
+  serial: 1
+  roles:
+    - control-plane-join

@@ -1,0 +1,26 @@
+---
+- name: Check if node already joined the cluster
+  stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
+- name: Get join command from control plane
+  command: cat /root/join-command.txt
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: join_command
+  changed_when: false
+  when: not kubelet_conf.stat.exists
+
+- name: Join the cluster
+  command: "{{ join_command.stdout }} --ignore-preflight-errors=all"
+  when: not kubelet_conf.stat.exists
+
+- name: Wait for node to be Ready
+  shell: |
+    kubectl get node {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: node_ready
+  retries: 30
+  delay: 10
+  until: node_ready.stdout == "True"
+  changed_when: false

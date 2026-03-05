@@ -1,0 +1,4 @@
+---
+- import_playbook: common.yml
+- import_playbook: control-plane.yml
+- import_playbook: workers.yml

@@ -1,0 +1,75 @@
+---
+- name: Check if Calico is already installed
+  command: kubectl get daemonset calico-node -n kube-system
+  register: calico_check
+  failed_when: false
+  changed_when: false
+
+- name: Download Calico manifest
+  get_url:
+    url: "https://raw.githubusercontent.com/projectcalico/calico/v{{ calico_version }}/manifests/calico.yaml"
+    dest: /root/calico.yaml
+    mode: "0644"
+  when: calico_check.rc != 0
+
+- name: Set Calico MTU to 1450 (Hetzner network overhead)
+  replace:
+    path: /root/calico.yaml
+    regexp: '# - name: CALICO_IPV4POOL_IPIP'
+    replace: '- name: CALICO_IPV4POOL_IPIP'
+  when: calico_check.rc != 0
+
+- name: Set veth MTU in Calico manifest
+  replace:
+    path: /root/calico.yaml
+    regexp: 'veth_mtu:\s*"0"'
+    replace: 'veth_mtu: "1450"'
+  when: calico_check.rc != 0
+
+- name: Apply Calico CNI
+  command: kubectl apply -f /root/calico.yaml
+  when: calico_check.rc != 0
+
+- name: Wait for Calico pods to be ready
+  shell: |
+    kubectl get pods -n kube-system -l k8s-app=calico-node -o jsonpath='{.items[*].status.phase}' | grep -v Running
+  register: calico_ready
+  retries: 30
+  delay: 10
+  until: calico_ready.rc != 0
+  failed_when: false
+  changed_when: false
+
+- name: Wait for control plane node to be Ready
+  shell: kubectl get nodes -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}'
+  register: node_ready
+  retries: 30
+  delay: 10
+  until: node_ready.stdout == "True"
+  changed_when: false
+
+- name: Generate worker join command
+  command: kubeadm token create --print-join-command
+  register: join_command_result
+  changed_when: false
+
+- name: Save worker join command
+  copy:
+    dest: /root/join-command.txt
+    content: "{{ join_command_result.stdout }}"
+    mode: "0600"
+
+- name: Upload certificates for control plane join
+  command: kubeadm init phase upload-certs --upload-certs
+  register: upload_certs_result
+  changed_when: false
+
+- name: Extract certificate key
+  set_fact:
+    k8s_certificate_key: "{{ upload_certs_result.stdout_lines[-1] }}"
+
+- name: Save control plane join command
+  copy:
+    dest: /root/cp-join-command.txt
+    content: "{{ join_command_result.stdout }} --control-plane --certificate-key {{ k8s_certificate_key }}"
+    mode: "0600"
