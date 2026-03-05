@@ -262,7 +262,7 @@ See `docs/TROUBLESHOOTING.md` for scaling down (3 to 1) procedure.
 ```bash
 # 1. Clone and configure
 git clone <this-repo>
-cd kubernetes-kubeadm-on-hetzner
+cd infra-kubernetes-kubeadm-on-hetzner
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
 # Edit terraform.tfvars with your HCLOUD_TOKEN and preferences
 
