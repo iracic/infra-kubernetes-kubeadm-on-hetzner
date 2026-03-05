@@ -52,9 +52,9 @@ variable "worker_count" {
 }
 
 variable "k8s_version" {
-  description = "Kubernetes minor version (e.g. 1.32)"
+  description = "Kubernetes minor version (e.g. 1.35)"
   type        = string
-  default     = "1.32"
+  default     = "1.35"
 }
 
 variable "cluster_name" {
@@ -63,8 +63,8 @@ variable "cluster_name" {
   default     = "k8s-lab"
 }
 
-variable "ssh_allowed_ips" {
-  description = "List of IPs allowed to SSH (CIDR). Empty = allow all."
+variable "allowed_ips" {
+  description = "List of IPs allowed to access SSH and API (CIDR). Empty = allow all."
   type        = list(string)
   default     = []
 }

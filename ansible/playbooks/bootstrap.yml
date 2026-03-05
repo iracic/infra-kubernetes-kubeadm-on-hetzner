@@ -1,0 +1,8 @@
+---
+- name: Bootstrap nodes (create kadmin user, disable root SSH)
+  hosts: k8s
+  become: true
+  vars:
+    ansible_user: root
+  roles:
+    - bootstrap

@@ -12,13 +12,11 @@ LB_IP=$(cd "$TERRAFORM_DIR" && terraform output -raw load_balancer_ip)
 
 echo "Fetching kubeconfig from control plane ($CP_IP)..."
 
-scp -o StrictHostKeyChecking=no "root@${CP_IP}:/etc/kubernetes/admin.conf" "$KUBECONFIG_FILE"
+scp -o StrictHostKeyChecking=no "kadmin@${CP_IP}:/home/kadmin/.kube/config" "$KUBECONFIG_FILE"
 
 # Replace the internal API server address with the load balancer IP
 sed -i "s|server: https://.*:6443|server: https://${LB_IP}:6443|" "$KUBECONFIG_FILE"
 
 echo "Kubeconfig saved to: $KUBECONFIG_FILE"
 echo ""
-echo "Usage:"
-echo "  export KUBECONFIG=${KUBECONFIG_FILE}"
-echo "  kubectl get nodes"
+make -C "$PROJECT_DIR" cluster-info

@@ -1,0 +1,46 @@
+---
+- name: Create kadmin user
+  user:
+    name: kadmin
+    shell: /bin/bash
+    groups: sudo
+    append: true
+    create_home: true
+
+- name: Allow kadmin sudo without password
+  copy:
+    dest: /etc/sudoers.d/kadmin
+    content: "kadmin ALL=(ALL) NOPASSWD:ALL"
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Create .ssh directory for kadmin
+  file:
+    path: /home/kadmin/.ssh
+    state: directory
+    owner: kadmin
+    group: kadmin
+    mode: "0700"
+
+- name: Copy authorized_keys from root to kadmin
+  copy:
+    src: /root/.ssh/authorized_keys
+    dest: /home/kadmin/.ssh/authorized_keys
+    remote_src: true
+    owner: kadmin
+    group: kadmin
+    mode: "0600"
+
+- name: Disable root SSH login
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PermitRootLogin"
+    line: "PermitRootLogin no"
+  notify: restart sshd
+
+- name: Disable SSH password authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PasswordAuthentication"
+    line: "PasswordAuthentication no"
+  notify: restart sshd

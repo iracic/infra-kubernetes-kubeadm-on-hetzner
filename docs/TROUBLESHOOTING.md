@@ -99,6 +99,8 @@ systemctl restart kubelet
 
 ### Load balancer health checks failing
 
+The LB has three services: API (6443), HTTP (80), HTTPS (443). Health checks on ports 80 and 443 will show as unhealthy until you deploy an ingress controller - this is expected and does not affect the API server.
+
 Verify the API server is reachable from within the private network:
 
 ```bash

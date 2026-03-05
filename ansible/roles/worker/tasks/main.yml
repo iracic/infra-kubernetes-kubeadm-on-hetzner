@@ -12,7 +12,7 @@
   when: not kubelet_conf.stat.exists
 
 - name: Join the cluster
-  command: "{{ join_command.stdout }} --ignore-preflight-errors=all"
+  command: "{{ join_command.stdout }}"
   when: not kubelet_conf.stat.exists
 
 - name: Wait for node to be Ready

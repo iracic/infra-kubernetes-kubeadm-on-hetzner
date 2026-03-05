@@ -1,15 +1,16 @@
-apiVersion: kubeadm.k8s.io/v1beta3
+apiVersion: kubeadm.k8s.io/v1beta4
 kind: InitConfiguration
 localAPIEndpoint:
   advertiseAddress: "{{ internal_ip }}"
   bindPort: 6443
 nodeRegistration:
   kubeletExtraArgs:
-    node-ip: "{{ internal_ip }}"
+    - name: node-ip
+      value: "{{ internal_ip }}"
 ---
-apiVersion: kubeadm.k8s.io/v1beta3
+apiVersion: kubeadm.k8s.io/v1beta4
 kind: ClusterConfiguration
-kubernetesVersion: stable
+kubernetesVersion: "v{{ k8s_full_version }}"
 controlPlaneEndpoint: "{{ lb_ip }}:6443"
 networking:
   podSubnet: "{{ pod_cidr }}"

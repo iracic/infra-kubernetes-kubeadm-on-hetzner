@@ -1,4 +1,18 @@
 ---
+- name: Check for outdated component versions
+  debug:
+    msg: >-
+      WARNING: Kubernetes {{ k8s_version }} is outdated. Current stable is 1.35.
+      Update k8s_version in your inventory.
+  when: k8s_version is version('1.34', '<')
+
+- name: Check for outdated Calico version
+  debug:
+    msg: >-
+      WARNING: Calico {{ calico_version }} is outdated. Current stable is 3.29.x.
+      Update calico_version in your inventory.
+  when: calico_version is version('3.28', '<')
+
 - name: Wait for cloud-init to finish
   command: cloud-init status --wait
   changed_when: false

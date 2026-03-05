@@ -12,14 +12,7 @@
     mode: "0644"
   when: calico_check.rc != 0
 
-- name: Set Calico MTU to 1450 (Hetzner network overhead)
-  replace:
-    path: /root/calico.yaml
-    regexp: '# - name: CALICO_IPV4POOL_IPIP'
-    replace: '- name: CALICO_IPV4POOL_IPIP'
-  when: calico_check.rc != 0
-
-- name: Set veth MTU in Calico manifest
+- name: Set veth MTU to 1450 in Calico manifest (Hetzner network overhead)
   replace:
     path: /root/calico.yaml
     regexp: 'veth_mtu:\s*"0"'

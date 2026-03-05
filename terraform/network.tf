@@ -22,7 +22,7 @@ resource "hcloud_firewall" "k8s" {
     direction  = "in"
     protocol   = "tcp"
     port       = "22"
-    source_ips = length(var.ssh_allowed_ips) > 0 ? var.ssh_allowed_ips : ["0.0.0.0/0", "::/0"]
+    source_ips = length(var.allowed_ips) > 0 ? var.allowed_ips : ["0.0.0.0/0", "::/0"]
   }
 
   # Kubernetes API
@@ -30,7 +30,7 @@ resource "hcloud_firewall" "k8s" {
     direction  = "in"
     protocol   = "tcp"
     port       = "6443"
-    source_ips = length(var.ssh_allowed_ips) > 0 ? var.ssh_allowed_ips : ["0.0.0.0/0", "::/0"]
+    source_ips = length(var.allowed_ips) > 0 ? var.allowed_ips : ["0.0.0.0/0", "::/0"]
   }
 
   # HTTP
@@ -46,14 +46,6 @@ resource "hcloud_firewall" "k8s" {
     direction  = "in"
     protocol   = "tcp"
     port       = "443"
-    source_ips = ["0.0.0.0/0", "::/0"]
-  }
-
-  # NodePort range (for ingress controllers)
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "30000-32767"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 

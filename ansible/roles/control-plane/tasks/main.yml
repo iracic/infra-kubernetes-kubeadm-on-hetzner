@@ -4,10 +4,18 @@
     path: /etc/kubernetes/admin.conf
   register: kubeadm_init
 
+- name: Get installed kubeadm version
+  command: kubeadm version -o short
+  register: kubeadm_version
+  changed_when: false
+  when: not kubeadm_init.stat.exists
+
 - name: Create kubeadm config
   template:
     src: kubeadm-config.yml.j2
     dest: /root/kubeadm-config.yml
+  vars:
+    k8s_full_version: "{{ kubeadm_version.stdout | regex_replace('^v', '') }}"
   when: not kubeadm_init.stat.exists
 
 - name: Initialize Kubernetes cluster
@@ -26,6 +34,23 @@
     src: /etc/kubernetes/admin.conf
     dest: /root/.kube/config
     remote_src: true
+    mode: "0600"
+
+- name: Create .kube directory for kadmin
+  file:
+    path: /home/kadmin/.kube
+    state: directory
+    owner: kadmin
+    group: kadmin
+    mode: "0700"
+
+- name: Copy admin.conf to kadmin .kube/config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/kadmin/.kube/config
+    remote_src: true
+    owner: kadmin
+    group: kadmin
     mode: "0600"
 
 - name: Wait for API server to be ready

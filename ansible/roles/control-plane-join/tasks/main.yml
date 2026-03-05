@@ -28,6 +28,23 @@
     remote_src: true
     mode: "0600"
 
+- name: Create .kube directory for kadmin
+  file:
+    path: /home/kadmin/.kube
+    state: directory
+    owner: kadmin
+    group: kadmin
+    mode: "0700"
+
+- name: Copy admin.conf to kadmin .kube/config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/kadmin/.kube/config
+    remote_src: true
+    owner: kadmin
+    group: kadmin
+    mode: "0600"
+
 - name: Configure kubelet to use internal IP
   copy:
     dest: /etc/default/kubelet
