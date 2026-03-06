@@ -7,9 +7,9 @@ AUTO_APPROVE ?=
 ANSIBLE_ARGS = $(if $(V),-$(V),)
 TF_AUTO_APPROVE = $(if $(AUTO_APPROVE),-auto-approve,)
 
-.PHONY: all help prereqs infra-init infra-plan infra-apply inventory clean-keys bootstrap cluster common cp workers kubeconfig cluster-info smoke-test status ssh-cp ssh-worker reset destroy
+.PHONY: all help prereqs infra-init infra-plan infra-apply inventory bootstrap cluster common cp workers kubeconfig cluster-info smoke-test status ssh-cp ssh-worker reset destroy clean-keys
 
-all: infra-init infra-apply inventory clean-keys bootstrap cluster kubeconfig smoke-test ## Full deploy from zero to working cluster
+all: infra-init infra-apply inventory bootstrap cluster kubeconfig smoke-test ## Full deploy from zero to working cluster
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -54,19 +54,16 @@ inventory: ## Generate Ansible inventory from Terraform
 	@echo "Inventory written to $(ANSIBLE_DIR)/inventory.ini"
 	@cat $(ANSIBLE_DIR)/inventory.ini
 
-# --- SSH Keys ---
-
-clean-keys: ## Remove old SSH host keys for cluster IPs from known_hosts
-	@cd $(TERRAFORM_DIR) && terraform output -json control_plane_ips 2>/dev/null | jq -r '.[]' | while read ip; do \
-		ssh-keygen -f ~/.ssh/known_hosts -R "$$ip" 2>/dev/null; done
-	@cd $(TERRAFORM_DIR) && terraform output -json worker_ips 2>/dev/null | jq -r '.[]' | while read ip; do \
-		ssh-keygen -f ~/.ssh/known_hosts -R "$$ip" 2>/dev/null; done
-	@echo "Old SSH host keys removed."
-
 # --- Bootstrap ---
 
-bootstrap: ## Create kadmin user, disable root SSH (run once after infra-apply)
-	cd $(ANSIBLE_DIR) && ansible-playbook playbooks/bootstrap.yml $(ANSIBLE_ARGS)
+bootstrap: ## Create kadmin user (run once after infra-apply)
+	@NEEDS=$$(cd $(ANSIBLE_DIR) && ansible k8s -m ping -e ansible_user=root --one-line 2>&1 | grep SUCCESS | awk '{print $$1}' | tr '\n' ',' | sed 's/,$$//'); \
+	if [ -n "$$NEEDS" ]; then \
+		echo "Bootstrapping: $$NEEDS"; \
+		cd $(ANSIBLE_DIR) && ansible-playbook playbooks/bootstrap.yml --limit "$$NEEDS" $(ANSIBLE_ARGS); \
+	else \
+		echo "All nodes already bootstrapped (root SSH disabled)."; \
+	fi
 
 # --- Cluster Setup ---
 
@@ -116,13 +113,23 @@ status: ## Show cluster status (nodes + all pods)
 	@KUBECONFIG=$(KUBECONFIG_FILE) kubectl get pods -A
 
 ssh-cp: ## SSH into control plane N (default N=0)
-	@ssh kadmin@$$(cd $(TERRAFORM_DIR) && terraform output -json control_plane_ips | jq -r '.[$(N)]')
+	@ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes kadmin@$$(cd $(TERRAFORM_DIR) && terraform output -json control_plane_ips | jq -r '.[$(N)]')
 
 ssh-worker: ## SSH into worker N (default N=0)
-	@ssh kadmin@$$(cd $(TERRAFORM_DIR) && terraform output -json worker_ips | jq -r '.[$(N)]')
+	@ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes kadmin@$$(cd $(TERRAFORM_DIR) && terraform output -json worker_ips | jq -r '.[$(N)]')
+
+clean-keys: ## Remove cluster IPs from ~/.ssh/known_hosts
+	@for ip in $$(cd $(TERRAFORM_DIR) && terraform output -json control_plane_ips 2>/dev/null | jq -r '.[]') \
+	            $$(cd $(TERRAFORM_DIR) && terraform output -json worker_ips 2>/dev/null | jq -r '.[]') \
+	            $$(cd $(TERRAFORM_DIR) && terraform output -raw load_balancer_ip 2>/dev/null); do \
+		[ -n "$$ip" ] && ssh-keygen -R "$$ip" 2>/dev/null; \
+	done
+	@echo "SSH known_hosts cleaned."
 
 destroy: ## Destroy all infrastructure (with confirmation)
-	@echo "WARNING: This will destroy ALL infrastructure."
-	@read -p "Type 'yes' to confirm: " confirm && [ "$$confirm" = "yes" ] || (echo "Aborted." && exit 1)
-	$(MAKE) clean-keys
-	cd $(TERRAFORM_DIR) && terraform destroy
+	@if [ -z "$(AUTO_APPROVE)" ]; then \
+		echo "WARNING: This will destroy ALL infrastructure."; \
+		read -p "Type 'yes' to confirm: " confirm && [ "$$confirm" = "yes" ] || (echo "Aborted." && exit 1); \
+	fi
+	@$(MAKE) clean-keys
+	cd $(TERRAFORM_DIR) && terraform destroy $(TF_AUTO_APPROVE)

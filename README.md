@@ -37,13 +37,12 @@ Production-grade Kubernetes cluster on Hetzner Cloud using kubeadm, provisioned 
 | Node subnet       | 10.0.1.0/24      | eu-central zone                    |
 | Control planes    | 10.0.1.10-12     | 1 or 3 nodes (configurable)        |
 | Workers           | 10.0.1.20+       | Sequential internal IPs            |
-| Pod CIDR (Calico) | 10.244.0.0/16    | IPIP mode, MTU 1450               |
+| Pod CIDR (Calico) | 10.244.0.0/16    | IPIP mode, auto-detect MTU        |
 | Service CIDR      | 10.96.0.0/12     | Default kubeadm                    |
 | Load balancer     | public IP        | API (6443), HTTP (80), HTTPS (443) |
 
 ### Hetzner-specific considerations
 
-- **MTU 1450** for Calico veth (Hetzner private network overhead)
 - **Kernel modules** `ipip`, `ip_tunnel` required for Calico IPIP tunnels
 - **Load balancer targets** must use private IPs (`use_private_ip = true`)
 - **kubelet `--node-ip`** must be set to internal IP (otherwise uses public IP)
@@ -211,7 +210,7 @@ make workers         # kubeadm join on worker nodes
 1. Generate kubeadm config (template with correct IPs, SANs, CIDRs)
 2. Run `kubeadm init --config kubeadm-config.yml`
 3. Set up `/root/.kube/config`
-4. Install Calico CNI (v3.29, MTU 1450)
+4. Install Calico CNI (v3.31)
 5. Wait for first CP node Ready
 6. Generate worker join command + CP join command (with certificate key)
 7. Upload certificates for additional CP nodes
@@ -379,7 +378,7 @@ make destroy         Destroy all infrastructure
 
 Baked into the Ansible roles based on real production experience:
 
-1. **Calico MTU 1450** -- Hetzner private network adds overhead, default 1500 causes packet drops
+1. **Calico MTU auto-detect** -- Calico correctly detects Hetzner's private network MTU (1450) and sets veth MTU to 1430 (minus IPIP overhead). No manual MTU configuration needed.
 2. **kubelet --node-ip** -- Without this, kubelet advertises public IP, breaking internal routing
 3. **LB private IP targets** -- Hetzner LB must target private IPs when using private network
 4. **SystemdCgroup = true** -- containerd must use systemd cgroup driver to match kubelet

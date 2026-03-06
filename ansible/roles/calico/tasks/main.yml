@@ -12,13 +12,6 @@
     mode: "0644"
   when: calico_check.rc != 0
 
-- name: Set veth MTU to 1450 in Calico manifest (Hetzner network overhead)
-  replace:
-    path: /root/calico.yaml
-    regexp: 'veth_mtu:\s*"0"'
-    replace: 'veth_mtu: "1450"'
-  when: calico_check.rc != 0
-
 - name: Apply Calico CNI
   command: kubectl apply -f /root/calico.yaml
   when: calico_check.rc != 0

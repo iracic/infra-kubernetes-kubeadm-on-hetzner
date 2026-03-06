@@ -112,18 +112,12 @@ Check that LB targets use private IPs (configured in Terraform).
 
 ### MTU issues (packet drops, timeouts between pods)
 
-Calico veth MTU must be 1450 on Hetzner (not 1500). Verify:
+Calico auto-detects the correct MTU from the underlying network interface. On Hetzner, the private network interface (`enp7s0`) has MTU 1450, and Calico sets veth MTU to 1430 (1450 minus 20 bytes IPIP overhead). No manual configuration needed.
+
+Verify:
 
 ```bash
 # On any node
-ip link show | grep cali
-# MTU should be 1450
-```
-
-If wrong, edit the calico-config ConfigMap:
-
-```bash
-kubectl edit configmap calico-config -n kube-system
-# Set veth_mtu: "1450"
-kubectl rollout restart daemonset calico-node -n kube-system
+cat /sys/class/net/cali*/mtu
+# Should be 1430 (auto-detected)
 ```

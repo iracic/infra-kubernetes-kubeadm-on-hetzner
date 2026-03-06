@@ -9,9 +9,9 @@
 - name: Check for outdated Calico version
   debug:
     msg: >-
-      WARNING: Calico {{ calico_version }} is outdated. Current stable is 3.29.x.
+      WARNING: Calico {{ calico_version }} is outdated. Current stable is 3.31.x.
       Update calico_version in your inventory.
-  when: calico_version is version('3.28', '<')
+  when: calico_version is version('3.31', '<')
 
 - name: Wait for cloud-init to finish
   command: cloud-init status --wait
