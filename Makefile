@@ -83,7 +83,7 @@ workers: ## Join worker nodes
 reset: ## Reset kubeadm on all nodes (keeps servers, destroys cluster)
 	@echo "WARNING: This will reset kubeadm on ALL nodes."
 	@read -p "Type 'yes' to confirm: " confirm && [ "$$confirm" = "yes" ] || (echo "Aborted." && exit 1)
-	cd $(ANSIBLE_DIR) && ansible --become -m shell -a "kubeadm reset -f && rm -rf /etc/kubernetes /root/.kube /home/kadmin/.kube /var/lib/etcd /etc/cni/net.d /var/lib/calico && ip link delete cali+ 2>/dev/null; ip link delete tunl0 2>/dev/null; true" k8s $(ANSIBLE_ARGS)
+	cd $(ANSIBLE_DIR) && ansible --become -m shell -a "kubeadm reset -f && rm -rf /etc/kubernetes /root/.kube /home/kadmin/.kube /var/lib/etcd /etc/cni/net.d /var/lib/calico && ip link delete cali+ 2>/dev/null; ip link delete tunl0 2>/dev/null; systemctl restart containerd && systemctl restart kubelet; true" k8s $(ANSIBLE_ARGS)
 
 # --- Operations ---
 

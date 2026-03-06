@@ -57,25 +57,42 @@ make common         # prepare new nodes
 make cp             # join new CP nodes (first CP is skipped, already initialized)
 ```
 
-**3 to 1:** Change `control_plane_count = 1` in terraform.tfvars, then:
+**3 to 1 (proper scale-down):**
+
+You must respect etcd quorum. With 3 members, quorum is 2. Remove nodes **one at a time**.
+
 ```bash
-# First, drain and remove extra CP nodes from the cluster
-kubectl drain k8s-lab-cp-1 --delete-emptydir-data --ignore-daemonsets
-kubectl delete node k8s-lab-cp-1
+# 1. Drain and remove CP-2
 kubectl drain k8s-lab-cp-2 --delete-emptydir-data --ignore-daemonsets
+ssh kadmin@<cp-2-ip> "sudo kubeadm reset -f"
 kubectl delete node k8s-lab-cp-2
 
-# Remove etcd members (from first CP)
-# List members:
-kubectl exec -n kube-system etcd-k8s-lab-cp-0 -- etcdctl member list \
-  --cacert /etc/kubernetes/pki/etcd/ca.crt \
-  --cert /etc/kubernetes/pki/etcd/server.crt \
-  --key /etc/kubernetes/pki/etcd/server.key
-# Remove each extra member by ID
+# 2. Drain and remove CP-1 (now quorum is 1/1, safe)
+kubectl drain k8s-lab-cp-1 --delete-emptydir-data --ignore-daemonsets
+ssh kadmin@<cp-1-ip> "sudo kubeadm reset -f"
+kubectl delete node k8s-lab-cp-1
 
-# Then destroy extra servers
+# 3. Update terraform and destroy extra servers
+# Edit terraform.tfvars: control_plane_count = 1
 make infra-apply
 make inventory
+```
+
+Etcd quorum reference:
+
+| CP nodes | Quorum | Max failures |
+|----------|--------|--------------|
+| 1        | 1      | 0            |
+| 2        | 2      | 0 (worse than 1 or 3!) |
+| 3        | 2      | 1            |
+
+**Never** remove 2 nodes at once from a 3-node etcd cluster -- you lose quorum and the API server stops responding. If you already lost quorum, the only recovery is a full reset:
+
+```bash
+make reset
+# Edit terraform.tfvars: control_plane_count = 1
+make destroy AUTO_APPROVE=1
+make all
 ```
 
 ### containerd issues

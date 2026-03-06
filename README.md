@@ -241,20 +241,38 @@ make status          # kubectl get nodes + pods -A
 make ssh-cp          # SSH into first control plane (N=0)
 make ssh-cp N=1      # SSH into second control plane
 make ssh-worker N=1  # SSH into worker N
+make reset           # reset kubeadm on all nodes (keeps servers)
+make clean-keys      # remove cluster IPs from ~/.ssh/known_hosts
 make destroy         # tear down everything (with confirmation)
+make destroy AUTO_APPROVE=1  # skip confirmation + terraform -auto-approve
 ```
 
-### Switching between 1 and 3 control planes
+### Scaling control plane (1 to 3)
 
 ```bash
-# Edit terraform/terraform.tfvars:  control_plane_count = 1  (or 3)
-make infra-apply     # add/remove servers
+# Edit terraform/terraform.tfvars:  control_plane_count = 3
+make infra-apply     # create new CP servers
 make inventory       # regenerate inventory
-make common          # prepare new nodes (if scaling up)
-make cp              # join new CP nodes (skips already-initialized)
+make common          # prepare new nodes
+make cp              # join new CP nodes (first CP skipped, already initialized)
 ```
 
-See `docs/TROUBLESHOOTING.md` for scaling down (3 to 1) procedure.
+### Scaling control plane (3 to 1)
+
+You **cannot** just change terraform and re-apply. Etcd requires quorum (2/3 members). Removing 2 nodes at once kills the cluster.
+
+**Option A: Proper scale-down** (no downtime)
+
+Remove nodes one at a time. See `docs/TROUBLESHOOTING.md` for the full procedure.
+
+**Option B: Full redeploy** (simpler, has downtime)
+
+```bash
+make reset
+# Edit terraform/terraform.tfvars:  control_plane_count = 1
+make destroy AUTO_APPROVE=1
+make all
+```
 
 ## Quick start
 
@@ -323,9 +341,12 @@ make status          Show nodes + all pods
 
 make ssh-cp          SSH into control plane (N=0,1,2)
 make ssh-worker      SSH into worker (N=0,1,...)
+make clean-keys      Remove cluster IPs from ~/.ssh/known_hosts
 make reset           Reset kubeadm on all nodes (keeps servers)
-make destroy         Destroy all infrastructure
+make destroy         Destroy all infrastructure (with confirmation)
 ```
+
+`AUTO_APPROVE=1` works with `make all`, `make infra-apply`, and `make destroy`.
 
 ## Configuration
 
