@@ -19,7 +19,9 @@ variable "ssh_public_key_path" {
 variable "locations" {
   description = "Hetzner datacenter locations (nodes distributed round-robin)"
   type        = list(string)
-  default     = ["fsn1", "nbg1", "hel1"]
+  # All nodes in one location for lowest etcd latency.
+  # Multi-location (e.g. ["fsn1", "nbg1"]) adds 5-30ms RTT which hurts etcd consensus.
+  default     = ["fsn1"]
 }
 
 variable "server_type" {

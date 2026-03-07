@@ -1,6 +1,16 @@
-# Kubernetes kubeadm on Hetzner Cloud
+# Kubernetes HA with kubeadm on Hetzner Cloud
 
-Production-grade Kubernetes cluster on Hetzner Cloud using kubeadm, provisioned from a local desktop.
+If you want to understand how Kubernetes HA actually works under the hood - etcd consensus, control plane redundancy, certificate management - there's no better way than building it yourself. Cloud-managed Kubernetes (EKS, GKE, OVH Managed K8s) hides all of this from you, which is great for production but bad for learning.
+
+This guide uses Hetzner Cloud because it's the cheapest way to spin up multiple servers in Europe (~4 EUR/node/month). **This is a learning project, not a production architecture recommendation.** For production, consider managed Kubernetes (EKS, GKE, OVH) where the control plane is handled for you. That said, Hetzner is a solid and cost-effective platform for teams comfortable with self-managed infrastructure.
+
+What you'll learn:
+- How etcd quorum works and why it matters
+- kubeadm certificate management and multi-CP join
+- Calico CNI networking on a private network
+- Load balancer in front of multiple API servers
+
+Total cost: ~20 EUR/month for a 3 CP + 1 worker cluster. Total deploy time: ~8 minutes.
 
 **Stack:** Terraform + Ansible + kubeadm + Calico CNI
 
