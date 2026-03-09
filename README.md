@@ -10,7 +10,7 @@ What you'll learn:
 - Calico CNI networking on a private network
 - Load balancer in front of multiple API servers
 
-Total cost: ~20 EUR/month for a 3 CP + 1 worker cluster. Total deploy time: ~8 minutes.
+Total cost: ~28 EUR/month for a 3 CP + 2 worker cluster. Total deploy time: ~8 minutes.
 
 **Stack:** Terraform + Ansible + kubeadm + Calico CNI
 
@@ -74,6 +74,9 @@ kubectl version --client
 # jq (used by Makefile for SSH targets)
 jq --version
 
+# hcloud CLI (optional, only needed for HA test scenarios)
+hcloud version
+
 # SSH key pair (will be uploaded to Hetzner)
 ls ~/.ssh/id_ed25519
 ```
@@ -97,7 +100,14 @@ Why pipx over alternatives:
 
 1. Create a project in [Hetzner Cloud Console](https://console.hetzner.cloud/)
 2. Go to Security > API Tokens > Generate API Token (read/write)
-3. Copy the token into `terraform/terraform.tfvars`:
+3. (Optional, only for HA test scenarios) Configure hcloud CLI context:
+
+```bash
+hcloud context create k8s-lab
+# paste your API token when prompted
+```
+
+4. Copy the token into `terraform/terraform.tfvars`:
 
 ```bash
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
@@ -284,6 +294,24 @@ make destroy AUTO_APPROVE=1
 make all
 ```
 
+### HA testing
+
+With `control_plane_count = 3`, you can test HA scenarios to see how the cluster handles failures:
+
+```bash
+make test-kill-etcd N=1              # stop etcd on CP-1, verify cluster survives (2/3 quorum)
+make test-recover N=1                # restart kubelet, CP-1 rejoins
+
+make test-kill-cp N=2                # stop kubelet on CP-2, verify API still works via LB
+make test-recover N=2                # restart kubelet, CP-2 rejoins
+```
+
+Add `DEBUG=1` for detailed output (etcd member list, kubelet logs, events):
+
+```bash
+make test-kill-etcd N=1 DEBUG=1
+```
+
 ## Quick start
 
 ```bash
@@ -349,11 +377,24 @@ make cluster-info    Show cluster connection info and quick status
 make smoke-test      Verify cluster health
 make status          Show nodes + all pods
 
+make show-events     Show recent cluster events (filtered)
+make show-etcd-logs  Show etcd warnings/errors on CP N (N=0,1,2)
+
 make ssh-cp          SSH into control plane (N=0,1,2)
 make ssh-worker      SSH into worker (N=0,1,...)
 make clean-keys      Remove cluster IPs from ~/.ssh/known_hosts
 make reset           Reset kubeadm on all nodes (keeps servers)
 make destroy         Destroy all infrastructure (with confirmation)
+
+make test-kill-etcd  Stop etcd on CP N (N=0,1,2)
+make test-kill-cp    Stop kubelet on CP N
+make test-kill-node-cp  Power off CP N via Hetzner API (requires hcloud)
+make test-recover       Restart kubelet on CP N
+make test-recover-node-cp  Power on CP N via Hetzner API
+make test-deploy        Deploy test workload (nginx 2 replicas + NodePort)
+make test-cleanup       Remove test workload
+make test-kill-node-worker  Power off worker N via Hetzner API
+make test-recover-node-worker  Power on worker N via Hetzner API
 ```
 
 `AUTO_APPROVE=1` works with `make all`, `make infra-apply`, and `make destroy`.
@@ -371,7 +412,7 @@ make destroy         Destroy all infrastructure (with confirmation)
 | `server_type`         | `cx23`                  | 2 vCPU, 4GB RAM, 40GB SSD         |
 | `image`               | `ubuntu-24.04`          | OS image                           |
 | `control_plane_count` | `3`                     | CP nodes: 1 (single) or 3 (HA)   |
-| `worker_count`        | `1`                     | Number of worker nodes             |
+| `worker_count`        | `2`                     | Number of worker nodes             |
 | `k8s_version`         | `1.35`                  | Kubernetes minor version           |
 | `cluster_name`        | `k8s-lab`               | Cluster name prefix                |
 

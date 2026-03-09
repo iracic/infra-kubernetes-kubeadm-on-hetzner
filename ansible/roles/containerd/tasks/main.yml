@@ -21,6 +21,14 @@
     replace: 'SystemdCgroup = true'
   notify: restart containerd
 
+- name: Configure crictl to use containerd
+  copy:
+    dest: /etc/crictl.yaml
+    content: |
+      runtime-endpoint: unix:///run/containerd/containerd.sock
+      image-endpoint: unix:///run/containerd/containerd.sock
+      timeout: 10
+
 - name: Enable and start containerd
   systemd:
     name: containerd

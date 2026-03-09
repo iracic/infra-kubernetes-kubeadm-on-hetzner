@@ -95,6 +95,40 @@ make destroy AUTO_APPROVE=1
 make all
 ```
 
+### Replacing a failed control plane node
+
+When a CP node is permanently lost (hardware failure, corrupted disk), you need to remove it from the cluster and create a fresh replacement.
+
+```bash
+# 1. Remove the etcd member from a healthy CP node
+#    List members to find the ID of the failed node:
+kubectl exec -n kube-system etcd-k8s-lab-cp-0 -- etcdctl member list \
+  --cacert /etc/kubernetes/pki/etcd/ca.crt \
+  --cert /etc/kubernetes/pki/etcd/server.crt \
+  --key /etc/kubernetes/pki/etcd/server.key
+
+#    Remove the failed member by ID:
+kubectl exec -n kube-system etcd-k8s-lab-cp-0 -- etcdctl member remove <MEMBER_ID> \
+  --cacert /etc/kubernetes/pki/etcd/ca.crt \
+  --cert /etc/kubernetes/pki/etcd/server.crt \
+  --key /etc/kubernetes/pki/etcd/server.key
+
+# 2. Delete the node from Kubernetes
+kubectl delete node k8s-lab-cp-1
+
+# 3. Recreate the server (-replace forces destroy + create)
+cd terraform
+terraform apply -replace='hcloud_server.control_plane[1]' -replace='hcloud_server_network.control_plane[1]'
+
+# 4. Join the new server to the cluster
+make inventory
+make bootstrap       # bootstrap the new node
+make common          # install containerd, kubeadm
+make cp              # join as new CP (existing CPs are skipped)
+```
+
+The new node gets the same IP (assigned statically in terraform) and joins as a fresh etcd member.
+
 ### containerd issues
 
 If pods fail to start with containerd errors:
